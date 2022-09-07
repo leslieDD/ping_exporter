@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/czerwonk/ping_exporter/config"
 	mon "github.com/digineo/go-ping/monitor"
 	log "github.com/sirupsen/logrus"
 )
@@ -21,7 +23,74 @@ type target struct {
 	delay     time.Duration
 	resolver  *net.Resolver
 	mutex     sync.Mutex
+	keys      sync.Map
+	handle    http.Handler
+	flushTime time.Time
 }
+
+// var targets map[string]*target
+type Targets struct {
+	lock     sync.Mutex
+	targets  map[string]*target
+	resolver *net.Resolver
+	cfg      *config.Config
+	count    int
+}
+
+func (t *Targets) Check(host string) bool {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	_, ok := t.targets[host]
+	return ok
+}
+
+func (t *Targets) Add(host string, monitor *mon.Monitor) *target {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	obj, ok := t.targets[host]
+	if ok {
+		obj.flushTime = time.Now()
+		return obj
+	}
+	t.count += 1
+	tObj := &target{
+		host:      host,
+		addresses: make([]net.IPAddr, 0),
+		delay:     time.Duration(5*t.count) * time.Millisecond,
+		resolver:  t.resolver,
+		keys:      sync.Map{},
+		flushTime: time.Now(),
+	}
+	err := tObj.addOrUpdateMonitor(monitor, t.cfg.Options.DisableIPv6)
+	if err != nil {
+		log.Errorln(err)
+	}
+	t.targets[host] = tObj
+	return tObj
+}
+
+func (t *Targets) Remove(host string) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	delete(t.targets, host)
+}
+
+func NewTargets(cfg *config.Config) *Targets {
+	resolver := setupResolver(cfg)
+	t := Targets{
+		lock:     sync.Mutex{},
+		targets:  map[string]*target{},
+		resolver: resolver,
+		cfg:      cfg,
+		count:    0,
+	}
+	return &t
+}
+
+var targets *Targets
 
 const (
 	ipv4 ipVersion = 4
@@ -78,6 +147,7 @@ func (t *target) cleanUp(addr []net.IPAddr, monitor *mon.Monitor) {
 			name := t.nameForIP(o)
 			log.Infof("removing target for host %s (%v)", t.host, o)
 			monitor.RemoveTarget(name)
+			t.keys.Delete(name)
 		}
 	}
 }
@@ -85,7 +155,7 @@ func (t *target) cleanUp(addr []net.IPAddr, monitor *mon.Monitor) {
 func (t *target) add(addr net.IPAddr, monitor *mon.Monitor) error {
 	name := t.nameForIP(addr)
 	log.Infof("adding target for host %s (%v)", t.host, addr)
-
+	t.keys.Store(name, time.Now())
 	return monitor.AddTargetDelayed(name, addr, t.delay)
 }
 

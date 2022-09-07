@@ -27,6 +27,7 @@ var (
 type pingCollector struct {
 	monitor *mon.Monitor
 	metrics map[string]*mon.Metrics
+	target  *target
 }
 
 func (p *pingCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -51,8 +52,54 @@ func (p *pingCollector) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(progDesc, prometheus.GaugeValue, 1)
 
-	for target, metrics := range p.metrics {
-		l := strings.SplitN(target, " ", 3)
+	// target, metrics := p.metrics[p.target.host]
+	// for _, ipaddr := range  {
+	// 	l := ipaddr.String()
+	// 	metrics, ok := p.metrics[ipaddr.String()]
+	// 	if !ok {
+	// 		continue
+	// 	}
+	// 	if metrics.PacketsSent > metrics.PacketsLost {
+	// 		if enableDeprecatedMetrics {
+	// 			rttDesc.Collect(ch, metrics.Best, append(l, "best")...)
+	// 			rttDesc.Collect(ch, metrics.Worst, append(l, "worst")...)
+	// 			rttDesc.Collect(ch, metrics.Mean, append(l, "mean")...)
+	// 			rttDesc.Collect(ch, metrics.StdDev, append(l, "std_dev")...)
+	// 		}
+
+	// 		bestDesc.Collect(ch, metrics.Best, l...)
+	// 		worstDesc.Collect(ch, metrics.Worst, l...)
+	// 		meanDesc.Collect(ch, metrics.Mean, l...)
+	// 		stddevDesc.Collect(ch, metrics.StdDev, l...)
+	// 	}
+
+	// 	loss := float64(metrics.PacketsLost) / float64(metrics.PacketsSent)
+	// 	ch <- prometheus.MustNewConstMetric(lossDesc, prometheus.GaugeValue, loss, l...)
+	// }
+
+	// deleteItem := []string{}
+
+	p.target.keys.Range(func(key, value interface{}) bool {
+		keyStr, ok := key.(string)
+		if !ok {
+			// deleteItem = append(deleteItem, key.(string)) // must string
+			return true
+		}
+		// t, ok := value.(time.Time)
+		// if !ok {
+		// 	deleteItem = append(deleteItem, key.(string)) // must string
+		// 	return true
+		// }
+		// if time.Since(t).Minutes() > 10 {
+		// 	deleteItem = append(deleteItem, key.(string)) // must string
+		// 	return true
+		// }
+		l := strings.SplitN(keyStr, " ", 3)
+
+		metrics, ok := p.metrics[keyStr]
+		if !ok {
+			return true
+		}
 
 		if metrics.PacketsSent > metrics.PacketsLost {
 			if enableDeprecatedMetrics {
@@ -70,5 +117,27 @@ func (p *pingCollector) Collect(ch chan<- prometheus.Metric) {
 
 		loss := float64(metrics.PacketsLost) / float64(metrics.PacketsSent)
 		ch <- prometheus.MustNewConstMetric(lossDesc, prometheus.GaugeValue, loss, l...)
-	}
+		return true
+	})
+
+	// for target, metrics := range p.metrics {
+	// 	l := strings.SplitN(target, " ", 3)
+
+	// 	if metrics.PacketsSent > metrics.PacketsLost {
+	// 		if enableDeprecatedMetrics {
+	// 			rttDesc.Collect(ch, metrics.Best, append(l, "best")...)
+	// 			rttDesc.Collect(ch, metrics.Worst, append(l, "worst")...)
+	// 			rttDesc.Collect(ch, metrics.Mean, append(l, "mean")...)
+	// 			rttDesc.Collect(ch, metrics.StdDev, append(l, "std_dev")...)
+	// 		}
+
+	// 		bestDesc.Collect(ch, metrics.Best, l...)
+	// 		worstDesc.Collect(ch, metrics.Worst, l...)
+	// 		meanDesc.Collect(ch, metrics.Mean, l...)
+	// 		stddevDesc.Collect(ch, metrics.StdDev, l...)
+	// 	}
+
+	// 	loss := float64(metrics.PacketsLost) / float64(metrics.PacketsSent)
+	// 	ch <- prometheus.MustNewConstMetric(lossDesc, prometheus.GaugeValue, loss, l...)
+	// }
 }

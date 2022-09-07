@@ -1,0 +1,16 @@
+targets:
+  - 218.85.157.99
+
+
+dns:
+  refresh: 2m15s
+  nameserver: 1.1.1.1
+
+ping:
+  interval: 5s
+  timeout: 4s
+  history-size: 30
+  payload-size: 30
+
+options:
+  disableIPv6: true
