@@ -13,7 +13,7 @@ For more information check the [source code][go-ping].
 ## Getting Started
 
 ### 更新的内容
-把配置文件中的targets去掉了，要监控的IP由prometheus下发，以下是prometheus配置的参考：
+把配置文件中的targets去掉了，要监控的IP从prometheus下发，以下是prometheus配置的参考：
 ```yaml
   - job_name: '新节点质量测试'
     file_sd_configs:
@@ -33,6 +33,8 @@ For more information check the [source code][go-ping].
     params:
       module: [icmp]  #http
 ```
+
+## 下以内容是原始版本的说明：
 
 ### Config file
 
