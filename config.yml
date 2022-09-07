@@ -1,7 +1,3 @@
-targets:
-  - 218.85.157.99
-
-
 dns:
   refresh: 2m15s
   nameserver: 1.1.1.1

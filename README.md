@@ -12,6 +12,28 @@ For more information check the [source code][go-ping].
 
 ## Getting Started
 
+### 更新的内容
+把配置文件中的targets去掉了，要监控的IP由prometheus下发，以下是prometheus配置的参考：
+```yaml
+  - job_name: '新节点质量测试'
+    file_sd_configs:
+      - files:
+        - "/usr/local/prometheus/conf.d/新节点质量测试.json"  # 要检测的IP列表
+        refresh_interval: 15s
+    relabel_configs:
+      - source_labels: ['__address__']
+     #   regex: (.*):([\d]+)
+        target_label: 'instance'
+     #   replacement: $1
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: 11.111.11.11:9427
+    metrics_path: /metrics
+    params:
+      module: [icmp]  #http
+```
+
 ### Config file
 
 Targets can be specified in a YAML based config file:
